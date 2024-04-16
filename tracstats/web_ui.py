@@ -78,19 +78,19 @@ class TracStatsPlugin(Component):
                 months, = m.groups()
                 ago = (24 * 60 * 60 * 30 * int(months))
                 since = now - ago
-                where.append('time / 1000000 > %s' % (since))
+                where.append('cast((time / 1000000) as unsigned integer) > %s' % (since))
             elif w is not None:
                 now = time.time()
                 weeks, = w.groups()
                 ago = (24 * 60 * 60 * 7 * int(weeks))
                 since = now - ago
-                where.append('time / 1000000 > %s' % (since))
+                where.append('cast((time / 1000000) as unsigned integer) > %s' % (since))
             elif d is not None:
                 now = time.time()
                 days, = d.groups()
                 ago = (24 * 60 * 60 * int(days))
                 since = now - ago
-                where.append('time / 1000000 > %s' % (since))
+                where.append('cast((time / 1000000) as unsigned integer) > %s' % (since))
         if where:
             where = 'where ' + ' and '.join(where)
         else:
@@ -170,7 +170,7 @@ class TracStatsPlugin(Component):
             cursor.execute("""
             select count(distinct r.author),
                    count(distinct r.rev),
-                   min(time / 1000000), max(time / 1000000)
+                   cast(min(time / 1000000) as unsigned integer), cast(max(time / 1000000) as unsigned integer)
             from node_change nc
             join revision r on r.repos = nc.repos and r.rev = nc.rev
             where nc.path like '%s%%'
@@ -179,7 +179,7 @@ class TracStatsPlugin(Component):
             cursor.execute("""
             select count(distinct author),
                    count(distinct rev),
-                   min(time / 1000000), max(time / 1000000)
+                   cast(min(time / 1000000) as unsigned integer), cast(max(time / 1000000) as unsigned integer)
             from revision
             """)
         authors, revisions, mintime, maxtime = cursor.fetchall()[0]
@@ -225,7 +225,7 @@ class TracStatsPlugin(Component):
             from node_change nc
             join revision r on r.repos = nc.repos and r.rev = nc.rev
             where nc.path like '%s%%'
-              and r.time / 1000000 > %d
+              and cast((r.time / 1000000) as unsigned integer) > %d
             group by 1
             order by 1
             """ % (strftime, root, start))
@@ -234,7 +234,7 @@ class TracStatsPlugin(Component):
             select %s,
                    count(*)
             from revision
-            where time / 1000000 > %d
+            where cast((time / 1000000) as unsigned integer) > %d
             group by 1 
             order by 1
             """ % (strftime, start))
@@ -267,7 +267,7 @@ class TracStatsPlugin(Component):
             from node_change nc
             join revision r on r.repos = nc.repos and r.rev = nc.rev
             where nc.path like '%s%%'
-              and r.time / 1000000 > %d
+              and cast((r.time / 1000000) as unsigned integer) > %d
             group by 1
             order by 2 desc
             limit 10
@@ -276,7 +276,7 @@ class TracStatsPlugin(Component):
             cursor.execute("""
             select author, count(*)
             from revision
-            where time / 1000000 > %d
+            where cast((time / 1000000) as unsigned integer) > %d
             group by 1
             order by 2 desc
             limit 10
@@ -295,14 +295,14 @@ class TracStatsPlugin(Component):
             from node_change nc
             join revision r on r.repos = nc.repos and r.rev = nc.rev
             where nc.path like '%s%%'
-              and r.time / 1000000 > %d
+              and cast((r.time / 1000000) as unsigned integer) > %d
             """ % (root, start))
         else:
             cursor.execute("""
             select r.repos, nc.path
             from node_change nc
             join revision r on r.repos = nc.repos and r.rev = nc.rev
-            where time / 1000000 > %d
+            where cast((time / 1000000) as unsigned integer) > %d
             """ % (start))
         rows = cursor.fetchall()
 
@@ -361,7 +361,7 @@ class TracStatsPlugin(Component):
 
         if project:
             cursor.execute("""
-            select rev, time / 1000000, author, message, r.repos
+            select rev, cast((time / 1000000) as unsigned integer), author, message, r.repos
             from revision r
             join (
                select rev
@@ -372,7 +372,7 @@ class TracStatsPlugin(Component):
             """ % (project) + where + " order by 2")
         else:
             cursor.execute("""
-            select rev, time / 1000000, author, message, r.repos
+            select rev, cast((time / 1000000) as unsigned integer), author, message, r.repos
             from revision r
             """ + where + " order by 2")
         revisions = cursor.fetchall()
@@ -771,8 +771,8 @@ class TracStatsPlugin(Component):
     def _process_wiki(self, req, cursor, where, since, data):
 
         cursor.execute("""
-        select min(time / 1000000),
-               max(time / 1000000),
+        select cast(min(time / 1000000) as unsigned integer),
+               cast(max(time / 1000000) as unsigned integer),
                count(*),
                count(distinct author) from wiki """ + where)
         mintime, maxtime, edits, editors = cursor.fetchall()[0]
@@ -829,8 +829,8 @@ class TracStatsPlugin(Component):
                           'percent': '%.2f' % (100 * v[0] / total)})
         data['byauthor'] = stats
 
-        __where = where.replace('where time / 1000000 > %s' % (since), '')
-        __where = __where.replace('and time / 1000000 > %s' % (since), '')
+        __where = where.replace('where cast((time / 1000000) as unsigned integer) > %s' % (since), '')
+        __where = __where.replace('and cast((time / 1000000) as unsigned integer) > %s' % (since), '')
         cursor.execute("""
         select name, time / 1000000
         from wiki """ + __where + """
@@ -886,7 +886,7 @@ class TracStatsPlugin(Component):
         data['largest'] = stats
 
         cursor.execute("""
-        select name, version, author, time / 1000000
+        select name, version, author, cast((time / 1000000) as unsigned integer)
         from wiki """ + where + """
         order by 4 desc
         limit 10
@@ -909,8 +909,8 @@ class TracStatsPlugin(Component):
 
         cursor.execute("""
         select
-            min(time / 1000000),
-            max(time / 1000000),
+            cast(min(time / 1000000) as unsigned integer),
+            cast(max(time / 1000000) as unsigned integer),
             count(*),
             count(distinct reporter)
         from ticket """ + where.replace('author', 'reporter'))
@@ -1016,13 +1016,13 @@ class TracStatsPlugin(Component):
 
         stats = []
         if not req.args.get('author', ''):
-            __where = where.replace('where time / 1000000 > %s' % (since), '')
-            __where = __where.replace('and time / 1000000 > %s' % (since), '')
+            __where = where.replace('where cast((time / 1000000) as unsigned integer) > %s' % (since), '')
+            __where = __where.replace('and cast((time / 1000000) as unsigned integer) > %s' % (since), '')
             cursor.execute("""\
-            select id, time / 1000000, 'none' as oldvalue, 'new' as newvalue
+            select id, cast((time / 1000000) as unsigned integer), 'none' as oldvalue, 'new' as newvalue
             from ticket """ + __where + """
             union
-            select ticket, time / 1000000, oldvalue, newvalue
+            select ticket, cast((time / 1000000) as unsigned integer), oldvalue, newvalue
             from ticket_change where field = 'status' """  +
                             __where.replace('where', 'and'))
             rows = cursor.fetchall()
@@ -1079,7 +1079,7 @@ class TracStatsPlugin(Component):
         data['active'] = stats
 
         cursor.execute("""
-        select id, component, summary, time / 1000000
+        select id, component, summary, cast((time / 1000000) as unsigned integer)
         from ticket
         where status != 'closed' """ + 
                        where.replace('where',
@@ -1100,7 +1100,7 @@ class TracStatsPlugin(Component):
         data['oldest'] = stats
 
         cursor.execute("""
-        select id, component, summary, time / 1000000
+        select id, component, summary, cast((time / 1000000) as unsigned integer)
         from ticket """ + where.replace('author', 'reporter') + """
         order by 4 desc
         limit 10
@@ -1117,7 +1117,7 @@ class TracStatsPlugin(Component):
         data['newest'] = stats
 
         cursor.execute("""
-        select tc.ticket, t.component, t.summary, tc.time / 1000000
+        select tc.ticket, t.component, t.summary, cast((tc.time / 1000000) as unsigned integer)
         from ticket_change tc
         join ticket t on t.id = tc.ticket """ +
                        where.replace('where', 'and').replace('time', 'tc.time') + """
